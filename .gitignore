@@ -1,0 +1,27 @@
+# Data files (download from Kaggle)
+diabetes_project/data/*.csv
+
+# Generated model files
+diabetes_project/outputs/models/*.pkl
+
+# Generated figures (reproducible)
+diabetes_project/outputs/figures/*.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Credentials
+kaggle/kaggle.json
+
+# OS
+.DS_Store
+Thumbs.db
