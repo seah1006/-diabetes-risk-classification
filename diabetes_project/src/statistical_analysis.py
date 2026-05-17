@@ -48,5 +48,4 @@ def odds_ratio_df(model, feature_names: list) -> pd.DataFrame:
         "계수": model.coef_[0],
         "오즈비": np.exp(model.coef_[0]),
     })
-    coef_df["1과의 거리"] = (coef_df["오즈비"] - 1.0).abs()
     return coef_df.sort_values("오즈비", ascending=False).reset_index(drop=True)
