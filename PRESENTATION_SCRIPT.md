@@ -12,7 +12,8 @@
 2. [STEP 1 — 전처리](#2-step-1--전처리-01_preprocessingipynb)
 3. [STEP 2 — EDA / 시각화](#3-step-2--eda--시각화-02_edaipynb)
 4. [STEP 3 — 통계 분석](#4-step-3--통계-분석-03_statistical_analysisipynb)
-5. [결론 및 한계점](#5-결론-및-한계점)
+5. [STEP 4 — 의사결정 및 정책 제안](#5-step-4--의사결정-및-정책-제안-04_decisionipynb)
+6. [결론 및 한계점](#6-결론-및-한계점)
 
 ---
 
@@ -68,8 +69,8 @@ print(f'전체 결측치 수: {df.isnull().sum().sum()}')
 ### 섹션 2 — 이상치 탐지 비교: IQR vs Z-score
 
 ```python
-iqr_mask = detect_outliers_iqr(bmi)         # IQR × 1.5 기준
-z_mask   = detect_outliers_zscore(bmi, threshold=3.0)  # 평균 ± 3σ 기준
+iqr_mask = detect_outliers_iqr(bmi)
+z_mask   = detect_outliers_zscore(bmi, threshold=3.0)
 
 print(f'IQR 이상치 수: {iqr_mask.sum()} ({iqr_mask.mean():.2%})')
 print(f'Z-score 이상치 수: {z_mask.sum()} ({z_mask.mean():.2%})')
@@ -93,7 +94,6 @@ strategies = {
     'KNN': KNNImputer(n_neighbors=5),
 }
 
-# 실제 결측치가 없으므로, BMI 5%를 임의로 NaN 처리 후 비교
 test_df.loc[missing_index, 'BMI'] = np.nan
 ```
 
@@ -316,8 +316,8 @@ sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', center=0, square=True)
 ### 섹션 7 — 이상치 및 결측치 확인
 
 ```python
-bmi_outlier_count = (df['BMI'] > 60).sum()   # 805행
-total_missing     = df.isnull().sum().sum()   # 0
+bmi_outlier_count = (df['BMI'] > 60).sum()
+total_missing     = df.isnull().sum().sum()
 ```
 
 - BMI 최대값 98 — 실제 고도 비만 환자값으로 의학적으로 유효하다.
@@ -337,11 +337,11 @@ total_missing     = df.isnull().sum().sum()   # 0
 ### 섹션 1 — 데이터 로드
 
 ```python
-df = pd.read_csv(DATA_PATH)                               # 원본 (253,680행)
-X_train, X_test, y_train, y_test = joblib.load(SPLIT_PATH)  # 전처리 완료 데이터
+df = pd.read_csv(DATA_PATH)
+X_train, X_test, y_train, y_test = joblib.load(SPLIT_PATH)
 
-binary_features     = ['HighBP', 'HighChol', 'CholCheck', 'Smoker', ...]  # 14개
-continuous_features = ['BMI', 'MentHlth', 'PhysHlth', 'Age', 'Education', 'Income', 'GenHlth']  # 7개
+binary_features     = ['HighBP', 'HighChol', 'CholCheck', 'Smoker', ...]
+continuous_features = ['BMI', 'MentHlth', 'PhysHlth', 'Age', 'Education', 'Income', 'GenHlth']
 ```
 
 **설명:**
@@ -370,8 +370,8 @@ sns.heatmap(group_means, annot=True, fmt='.2f', cmap='coolwarm')
 
 ```python
 for col in binary_features:
-    ct = pd.crosstab(df[col], df['Diabetes_binary'])      # 분할표 생성
-    chi2, p_value, dof, expected = chi2_contingency(ct)  # 카이제곱 검정
+    ct = pd.crosstab(df[col], df['Diabetes_binary'])
+    chi2, p_value, dof, expected = chi2_contingency(ct)
     chi2_results.append({'Feature': col, 'Chi2': chi2, 'p-value': p_value, 'Significant': p_value < 0.05})
 ```
 
@@ -416,7 +416,7 @@ lr.fit(X_train_df, y_train)
 coef_df = pd.DataFrame({
     'Feature':    feature_names,
     'Coefficient': lr.coef_[0],
-    'Odds Ratio':  np.exp(lr.coef_[0]),      # e^계수 = 오즈비
+    'Odds Ratio':  np.exp(lr.coef_[0]),
 })
 ```
 
@@ -436,7 +436,59 @@ coef_df = pd.DataFrame({
 
 ---
 
-## 5. 결론 및 한계점
+## 5. STEP 4 — 의사결정 및 정책 제안 (`04_decision.ipynb`)
+
+### 목표
+
+마지막 노트북에서는 모델 예측 확률을 실제 정책 판단에 사용할 수 있도록 위험 단계로 바꾼다.
+단순히 “맞췄다/틀렸다”가 아니라, 어떤 사람을 먼저 관리해야 하는지와 어떤 정책 개입이 필요한지를 제안하는 단계다.
+
+### 위험 단계 분류
+
+```python
+def classify_risk(prob):
+    if prob >= 0.6:
+        return '높음'
+    elif prob >= 0.3:
+        return '중간'
+    return '낮음'
+
+prob_df['risk_tier'] = prob_df['prob'].apply(classify_risk)
+```
+
+발표할 때는 이 기준이 절대적인 의학 기준이 아니라, 모델 확률을 정책적으로 해석하기 위한 분석 기준이라고 설명한다.
+
+### 고위험군 프로파일
+
+고위험군은 BMI와 주관적 건강 상태가 높고, 고혈압 비율이 높으며, 신체 활동이 부족한 방향으로 나타난다.
+이 결과는 앞의 EDA와 통계 분석에서 확인한 위험 요인과 일관된다.
+
+| 항목 | 해석 |
+|------|------|
+| BMI | 높을수록 당뇨 위험 증가 |
+| HighBP | 고혈압이 있는 집단의 위험 증가 |
+| PhysActivity | 신체 활동 부족 시 위험 증가 |
+| Age | 연령대가 높을수록 위험 증가 |
+| GenHlth | 주관적 건강 상태가 나쁠수록 위험 증가 |
+
+### 정책 시나리오
+
+| 시나리오 | 대상 | 개입 방식 |
+|---------|------|----------|
+| A | 고위험군 전체 | 정기 혈당 검사 의무화 |
+| B | BMI 30 이상 고위험군 | 체중 관리 프로그램 연계 |
+| C | 운동 부족 중·고위험군 | 지역 운동 프로그램 제공 |
+| D | 흡연과 고혈압이 동반된 중·고위험군 | 금연·혈압 관리 패키지 |
+
+이 부분은 발표의 결론과 직접 연결된다. 모델은 예측 도구이고, 정책 시나리오는 그 예측을 실제 예방 전략으로 바꾸는 해석 단계다.
+
+### 임계값 선택
+
+기본 임계값에서 Recall은 약 0.761이고, Recall 0.8 이상을 목표로 하면 임계값을 약 0.460까지 낮출 수 있다.
+이 경우 더 많은 위험군을 찾을 수 있지만 Precision은 낮아진다.
+의료 선별 목적에서는 미탐지 비용이 더 크므로, 본 프로젝트는 Recall 중심 임계값을 권장한다.
+
+## 6. 결론 및 한계점
 
 ### 핵심 발견
 
@@ -467,5 +519,3 @@ coef_df = pd.DataFrame({
 *분석 도구: Python 3, pandas, numpy, matplotlib, seaborn, scikit-learn, imbalanced-learn, scipy*
 
 ---
-
-*STEP 4(모델 예측 기반 위험군 분류) 제외 — 전처리·EDA·통계 분석 중심 구성*

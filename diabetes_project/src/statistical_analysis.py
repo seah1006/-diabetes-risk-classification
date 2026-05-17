@@ -11,12 +11,13 @@ def chi2_test(df: pd.DataFrame, binary_features: list, target: str) -> pd.DataFr
         ct = pd.crosstab(df[col], df[target])
         chi2, p, dof, _ = chi2_contingency(ct)
         rows.append({
-            "Feature": col,
-            "Chi2": round(chi2, 3),
-            "p-value": round(p, 6),
-            "Significant": p < 0.05,
+            "피처": col,
+            "카이제곱": round(chi2, 3),
+            "p값": round(p, 6),
+            "자유도": dof,
+            "유의함": p < 0.05,
         })
-    return pd.DataFrame(rows).sort_values("Chi2", ascending=False).reset_index(drop=True)
+    return pd.DataFrame(rows).sort_values("카이제곱", ascending=False).reset_index(drop=True)
 
 
 def ttest_summary(df: pd.DataFrame, continuous_features: list, target: str) -> pd.DataFrame:
@@ -24,28 +25,28 @@ def ttest_summary(df: pd.DataFrame, continuous_features: list, target: str) -> p
     normal = df[df[target] == 0]
     rows = []
     for col in continuous_features:
-        t_stat, p = ttest_ind(diabetic[col], normal[col])
+        t_stat, p = ttest_ind(diabetic[col], normal[col], equal_var=False)
         rows.append({
-            "Feature": col,
-            "t-stat": round(t_stat, 3),
-            "p-value": round(p, 6),
-            "Mean (Diabetic)": round(diabetic[col].mean(), 3),
-            "Mean (Normal)": round(normal[col].mean(), 3),
+            "피처": col,
+            "t통계량": round(t_stat, 3),
+            "절대 t통계량": round(abs(t_stat), 3),
+            "p값": round(p, 6),
+            "당뇨군 평균": round(diabetic[col].mean(), 3),
+            "정상군 평균": round(normal[col].mean(), 3),
+            "평균 차이": round(diabetic[col].mean() - normal[col].mean(), 3),
         })
     return (
         pd.DataFrame(rows)
-        .sort_values("t-stat", key=abs, ascending=False)
+        .sort_values("절대 t통계량", ascending=False)
         .reset_index(drop=True)
     )
 
 
 def odds_ratio_df(model, feature_names: list) -> pd.DataFrame:
-    return (
-        pd.DataFrame({
-            "Feature": feature_names,
-            "Coefficient": model.coef_[0],
-            "Odds Ratio": np.exp(model.coef_[0]),
-        })
-        .sort_values("Odds Ratio", ascending=False)
-        .reset_index(drop=True)
-    )
+    coef_df = pd.DataFrame({
+        "피처": feature_names,
+        "계수": model.coef_[0],
+        "오즈비": np.exp(model.coef_[0]),
+    })
+    coef_df["1과의 거리"] = (coef_df["오즈비"] - 1.0).abs()
+    return coef_df.sort_values("오즈비", ascending=False).reset_index(drop=True)
